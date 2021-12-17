@@ -1,4 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
+
 Transform: AWS::Serverless-2016-10-31
 Description: >
   guardduty-threatlist-updater
@@ -48,18 +49,35 @@ Resources:
         - x86_64
       Environment:
         Variables:
-          - Name: S3_BUCKET
-            Value: !Ref S3Bucket
-          - Name: S3_KEY
-            Value: !Ref S3Key
-          - Name: GD_DETECTOR_ID
-            Value: !Ref GuardDutyDetectorId
-          - Name: GD_THREAT_INTEL_SET
-            Value: !Ref ThreatIntelSetName
-          - Name: THREATLIST_URL
-            Value: !Ref ThreatIntelURL
-          - Name: THREATLIST_FORMAT
-            Value: !Ref ThreatListFormat
+          S3_BUCKET: !Ref S3Bucket
+          S3_KEY: !Ref S3Key
+          GD_DETECTOR_ID: !Ref GuardDutyDetectorId
+          GD_THREAT_INTEL_SET: !Ref ThreatIntelSetName
+          THREATLIST_URL: !Ref ThreatIntelURL
+          THREATLIST_FORMAT: !Ref ThreatListFormat
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: AllowS3Actions
+              Effect: Allow
+              Action:
+                - s3:PutObject
+              Resource: !Sub arn:aws:s3:::${S3Bucket}/${S3Key}
+            - Sid: AllowGuardDutyActions
+              Effect: Allow
+              Action:
+                - guardduty:GetDetector
+                - guardduty:GetThreatIntelSet
+                - guardduty:CreateThreatIntelSet
+                - guardduty:ListThreatIntelSets
+                - guardduty:UpdateThreatIntelSet
+              Resource: '*'
+            - Sid: AllowPutIamRolePolicyGuardDuty
+              Effect: Allow
+              Action:
+                - iam:PutRolePolicy
+                #- iam:DeleteRolePolicy
+              Resource: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty
       Events:
         UpdateFnSchedule:
           Type: Schedule
