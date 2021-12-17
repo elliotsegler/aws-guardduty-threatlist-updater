@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  guardduty-threatlist-updater
+
+  Regularly downloads and updates a guardduty threatlist from a source on the internet
+
+Globals:
+  Function:
+    Timeout: 60
+
+Parameters:
+  S3Bucket:
+    Type: String
+  S3Key:
+    Type: String
+  GuardDutyDetectorId:
+    Type: String
+  ThreatIntelSetName:
+    Type: String
+    Default: AbuseCHIPBlocklist
+  ThreatIntelURL:
+    Type: String
+    Default: https://feodotracker.abuse.ch/downloads/ipblocklist_recommended.txt
+  ThreatListFormat:
+    Type: String
+    Default: TXT
+    AllowedValues:
+      - TXT
+      - STIX
+      - OTX_CSV
+      - ALIEN_VAULT
+      - PROOF_POINT
+      - FIRE_EYE
+  UpdateSchedule:
+    Type: String
+    Default: "1 hour"
+    AllowedPattern: "\\d+ (minute|hour|day)s?"
+
+Resources:
+  ThreatListUpdateFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: threatlist_updater/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          - Name: S3_BUCKET
+            Value: !Ref S3Bucket
+          - Name: S3_KEY
+            Value: !Ref S3Key
+          - Name: GD_DETECTOR_ID
+            Value: !Ref GuardDutyDetectorId
+          - Name: GD_THREAT_INTEL_SET
+            Value: !Ref ThreatIntelSetName
+          - Name: THREATLIST_URL
+            Value: !Ref ThreatIntelURL
+          - Name: THREATLIST_FORMAT
+            Value: !Ref ThreatListFormat
+      Events:
+        UpdateFnSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: !Sub "rate(${UpdateSchedule})"
+            Enabled: true
+
+Outputs:
+  ThreatListUpdateFunction:
+    Description: "ThreatList Update Lambda Function ARN"
+    Value: !GetAtt ThreatListUpdateFn.Arn
